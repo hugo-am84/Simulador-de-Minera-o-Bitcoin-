@@ -22,10 +22,10 @@ def salvar_blocos(blocos):
         json.dump(blocos, f, indent=4)
 
 def salvar_log(bloco, hash_final, tentativas, tempo):
-    if not os.path.exists(ARQUIVO_LOG):
-        with open(ARQUIVO_LOG, "w") as f:
-            f.write("Log de Mineração de Blocos\n")
-            f.write("=" * 50 + "\n")
+    # Roda o log se ultrapassar 5 MB
+    if os.path.exists(ARQUIVO_LOG) and os.path.getsize(ARQUIVO_LOG) > 5 * 1024 * 1024:
+        nome_antigo = ARQUIVO_LOG.replace(".txt", f"_{datetime.now().strftime('%Y%m%d%H%M%S')}.txt")
+        os.rename(ARQUIVO_LOG, nome_antigo)
 
     with open(ARQUIVO_LOG, "a") as f:
         f.write(f"Bloco #{bloco['numero']} minerado em {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -55,14 +55,14 @@ def minerar_bloco(bloco, hash_anterior):
     prefixo = "0" * dificuldade
     tentativas = 0
     inicio = time.time()
-    nonce = 0  # Começa do zero e vai incrementando
+    nonce = 0
 
     while True:
         conteudo = f"{bloco['numero']}{bloco['data']}{bloco['conteudo']}{hash_anterior}{nonce}"
         hash_atual = hashlib.sha256(conteudo.encode()).hexdigest()
-
         tentativas += 1
-        print(f"{datetime.now().strftime('%H:%M:%S')} | Nonce: {nonce} | Hash: {hash_atual}")
+
+        print(f"{datetime.now().strftime('%H:%M:%S')} | Tentativa: {tentativas:,} | Nonce: {nonce} | Hash: {hash_atual[:16]}...", end='\r')
 
         if hash_atual.startswith(prefixo):
             fim = time.time()
@@ -70,6 +70,8 @@ def minerar_bloco(bloco, hash_anterior):
             bloco["hash"] = hash_atual
             salvar_blocos(blocos)
             salvar_log(bloco, hash_atual, tentativas, fim - inicio)
+
+            print()  # quebra a linha
             print(Fore.GREEN + f"\n✅ Hash minerada: {hash_atual}")
             print(f"⏱️ Tempo: {fim - inicio:.2f}s | Tentativas: {tentativas}\n")
             return
